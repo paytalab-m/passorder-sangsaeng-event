@@ -65,9 +65,10 @@
   /* ===== 플로팅 버튼 ===== */
   .floating{position:fixed;left:0;right:0;bottom:0;z-index:50;max-width:480px;margin:0 auto;
     padding:12px 18px calc(14px + env(safe-area-inset-bottom));
-    background:linear-gradient(180deg,rgba(255,255,255,0),#fff 30%);}
-  .floating a{display:block;}
-  .floating img{width:100%;transition:transform .12s ease;}
+    background:linear-gradient(180deg,rgba(255,255,255,0),#fff 30%);
+    pointer-events:none;}                    /* 배경은 클릭 통과 */
+  .floating a{display:block;cursor:pointer;pointer-events:auto;-webkit-tap-highlight-color:rgba(0,0,0,.05);}
+  .floating img{width:100%;display:block;transition:transform .12s ease;pointer-events:none;}
   .floating a:active img{transform:translateY(2px);}
 </style>
 </head>
@@ -114,6 +115,11 @@
   var appLink = 'https://passorder.kr/template/' + code + '?web_params=' + enc + '&web_params=' + enc;
   var cta = document.getElementById('ctaBtn');
   cta.setAttribute('href', appLink);
+  // 웹뷰에서 <a href> 클릭이 무시되는 경우 대비: 명시적 이동 핸들러
+  cta.addEventListener('click', function(e){
+    e.preventDefault();
+    window.location.href = appLink;
+  });
 
   // 3) 시간대별 상태 전환 (20~24시 카운트다운 / 그 외 진행중)
   var card = document.getElementById('statusCard');
