@@ -110,7 +110,8 @@
   //    형태: https://passorder.kr/template/[메시지코드]?web_params=[매장식별자]
   var DEFAULT_MSG = 'online_low_grade_store_0_near90_push_a'; // msg 누락 시 기본값
   var code = msgCode || DEFAULT_MSG;
-  var appLink = 'https://passorder.kr/template/' + code + '?web_params=' + encodeURIComponent(storeId);
+  var enc = encodeURIComponent(storeId);
+  var appLink = 'https://passorder.kr/template/' + code + '?web_params=' + enc + '&web_params=' + enc;
   var cta = document.getElementById('ctaBtn');
   cta.setAttribute('href', appLink);
 
