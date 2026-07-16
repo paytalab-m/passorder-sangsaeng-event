@@ -111,6 +111,19 @@
   var storeId = params.get('store_id') || params.get('web_params') || params.get('storeId') || '';
   var msgCode = params.get('msg') || params.get('msg_code') || params.get('message_code') || '';
 
+  // [보정] 앱 웹뷰가 &를 %26으로 넘겨 store_id 값 안에 "&msg=..."가 섞여 들어온 경우 분리
+  // 예: store_id = "cf46...&msg=online_low_grade_store_0_near90_push_a"
+  if (!msgCode && storeId.indexOf('msg=') !== -1) {
+    var parts = storeId.split(/&|%26/);           // & 또는 미디코딩된 %26 기준 분리
+    storeId = parts[0];                            // 첫 조각이 실제 store_id
+    for (var i = 1; i < parts.length; i++) {
+      var kv = parts[i].split('=');
+      if (kv[0] === 'msg' || kv[0] === 'msg_code' || kv[0] === 'message_code') {
+        msgCode = decodeURIComponent(kv.slice(1).join('='));
+      }
+    }
+  }
+
   // 유니크 request_id 생성 (진입마다 1개). 시간+난수+브라우저정보 조합으로 충돌 방지
   function makeId(){
     var t = Date.now().toString(36);
