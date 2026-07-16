@@ -1,2 +1,2 @@
 # passorder-sangsaeng-event
-상생할인
+패스오더 상생쿠폰
