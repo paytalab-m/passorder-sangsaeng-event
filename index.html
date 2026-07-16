@@ -104,7 +104,7 @@
 (function(){
   // ===== 로깅 설정 =====
   // 아래 LOG_ENDPOINT에 앱스스크립트 웹 앱 URL을 넣으세요 (배포 후 생성된 주소)
-  var LOG_ENDPOINT = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
+  var LOG_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxrky4u2N9QmiDhRLPnmOtQaQpPBUoTM2pfga0Cdu2gTBnlqtIiv4IlZE5RN4p53pmk/exec';
 
   // 1) URL 파라미터에서 매장식별자 + 메시지코드 읽기
   var params = new URLSearchParams(window.location.search);
@@ -122,7 +122,8 @@
   var requestId = makeId();
   var viewTime = Date.now();
 
-  // 이벤트 전송 (sendBeacon 우선 → 이탈/이동 중에도 전송 보장)
+  // 이벤트 전송: 앱스스크립트는 POST 시 302 리다이렉트를 거쳐 sendBeacon이 실패할 수 있어,
+  // 리다이렉트를 자동으로 따라가는 GET+이미지 픽셀 방식을 사용 (이탈 중에도 전송 보장, CORS 무관)
   function logEvent(eventName, extra){
     if (!LOG_ENDPOINT || LOG_ENDPOINT.indexOf('PASTE_YOUR') === 0) return; // 미설정 시 무시
     var payload = {
@@ -137,19 +138,13 @@
     };
     if (extra) for (var k in extra) payload[k] = extra[k];
 
-    // application/x-www-form-urlencoded 로 전송 (앱스스크립트 e.parameter 로 받음)
-    var body = Object.keys(payload).map(function(k){
+    var qs = Object.keys(payload).map(function(k){
       return encodeURIComponent(k) + '=' + encodeURIComponent(payload[k]);
     }).join('&');
 
     try {
-      if (navigator.sendBeacon) {
-        var blob = new Blob([body], {type:'application/x-www-form-urlencoded'});
-        navigator.sendBeacon(LOG_ENDPOINT, blob);
-      } else {
-        fetch(LOG_ENDPOINT, {method:'POST', mode:'no-cors',
-          headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:body, keepalive:true});
-      }
+      var img = new Image();
+      img.src = LOG_ENDPOINT + '?' + qs + '&_=' + Date.now(); // 캐시 방지
     } catch(err){ /* 로깅 실패는 무시 (사용자 경험 우선) */ }
   }
 
