@@ -102,23 +102,73 @@
 
 <script>
 (function(){
+  // ===== 로깅 설정 =====
+  // 아래 LOG_ENDPOINT에 앱스스크립트 웹 앱 URL을 넣으세요 (배포 후 생성된 주소)
+  var LOG_ENDPOINT = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
+
   // 1) URL 파라미터에서 매장식별자 + 메시지코드 읽기
   var params = new URLSearchParams(window.location.search);
   var storeId = params.get('store_id') || params.get('web_params') || params.get('storeId') || '';
   var msgCode = params.get('msg') || params.get('msg_code') || params.get('message_code') || '';
 
+  // 유니크 request_id 생성 (진입마다 1개). 시간+난수+브라우저정보 조합으로 충돌 방지
+  function makeId(){
+    var t = Date.now().toString(36);
+    var r = Math.random().toString(36).slice(2, 10);
+    var c = (window.crypto && crypto.getRandomValues)
+      ? crypto.getRandomValues(new Uint32Array(1))[0].toString(36) : '';
+    return t + '-' + r + (c ? ('-' + c) : '');
+  }
+  var requestId = makeId();
+  var viewTime = Date.now();
+
+  // 이벤트 전송 (sendBeacon 우선 → 이탈/이동 중에도 전송 보장)
+  function logEvent(eventName, extra){
+    if (!LOG_ENDPOINT || LOG_ENDPOINT.indexOf('PASTE_YOUR') === 0) return; // 미설정 시 무시
+    var payload = {
+      event: eventName,
+      request_id: requestId,
+      store_id: storeId,
+      msg_code: msgCode || '',
+      client_time: new Date().toISOString(),
+      user_agent: navigator.userAgent,
+      referrer: document.referrer || '',
+      screen: (screen.width + 'x' + screen.height)
+    };
+    if (extra) for (var k in extra) payload[k] = extra[k];
+
+    // application/x-www-form-urlencoded 로 전송 (앱스스크립트 e.parameter 로 받음)
+    var body = Object.keys(payload).map(function(k){
+      return encodeURIComponent(k) + '=' + encodeURIComponent(payload[k]);
+    }).join('&');
+
+    try {
+      if (navigator.sendBeacon) {
+        var blob = new Blob([body], {type:'application/x-www-form-urlencoded'});
+        navigator.sendBeacon(LOG_ENDPOINT, blob);
+      } else {
+        fetch(LOG_ENDPOINT, {method:'POST', mode:'no-cors',
+          headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:body, keepalive:true});
+      }
+    } catch(err){ /* 로깅 실패는 무시 (사용자 경험 우선) */ }
+  }
+
+  // 진입 기록
+  logEvent('view');
+
   // 2) 플로팅 버튼 링크 조립: 메시지코드에 따라 template 경로가 바뀜
-  //    형태: https://passorder.kr/template/[메시지코드]?web_params=[매장식별자]
   var DEFAULT_MSG = 'online_low_grade_store_0_near90_push_a'; // msg 누락 시 기본값
   var code = msgCode || DEFAULT_MSG;
   var enc = encodeURIComponent(storeId);
   var appLink = 'https://passorder.kr/template/' + code + '?web_params=' + enc + '&web_params=' + enc;
   var cta = document.getElementById('ctaBtn');
   cta.setAttribute('href', appLink);
-  // 웹뷰에서 <a href> 클릭이 무시되는 경우 대비: 명시적 이동 핸들러
+  // 웹뷰에서 <a href> 클릭이 무시되는 경우 대비: 명시적 이동 핸들러 + 클릭 로깅
   cta.addEventListener('click', function(e){
     e.preventDefault();
-    window.location.href = appLink;
+    logEvent('click', { elapsed_ms: (Date.now() - viewTime) });
+    // 로그 전송 여유를 아주 짧게 준 뒤 이동 (sendBeacon은 즉시 이동해도 전송됨)
+    setTimeout(function(){ window.location.href = appLink; }, 80);
   });
 
   // 3) 시간대별 상태 전환 (20~24시 카운트다운 / 그 외 진행중)
